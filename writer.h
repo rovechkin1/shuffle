@@ -10,6 +10,8 @@
 #include <thread>
 #include <unordered_map>
 #include <condition_variable>
+#include <atomic>
+#include <memory>
 #include "common.h"
 
 class ShuffleWriter{

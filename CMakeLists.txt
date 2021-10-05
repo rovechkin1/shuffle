@@ -9,4 +9,4 @@ find_package(Threads REQUIRED)
 
 set(CMAKE_CXX_FLAGS -pthread)
 
-add_executable(shuffle main.cpp writer.h writer.cpp common.h snappy_mock.h)
+add_executable(shuffle main.cpp writer.h writer.cpp common.h mock_snappy.h)

@@ -1,28 +1,31 @@
 #include <thread>
 #include <sstream>
+#include <iostream>
 #include "writer.h"
-#include "snappy_mock.h"
-ShuffleWriter::ShuffleWriter(int n_partitions, std::ostream& os):
-    _n_partitions(n_partitions),
-    _os(os),
-    _cancelled(false){
+#include "mock_snappy.h"
+
+ShuffleWriter::ShuffleWriter(int n_partitions, std::ostream &os) :
+        _n_partitions(n_partitions),
+        _os(os),
+        _cancelled(false),
+        _total_bytes(0) {
     // initialize all arrays
     _qs = std::vector<std::queue<std::vector<byte>>>(n_partitions);
     _wbs = std::vector<std::vector<byte>>(n_partitions);
-    for(int i=0;i<n_partitions;++i){
+    for (int i = 0; i < n_partitions; ++i) {
         _locks.emplace_back(std::make_unique<std::mutex>());
     }
 
     launch_tasks();
 }
 
-void ShuffleWriter::write(part_type part_id, const std::vector<byte>& bytes) {
-    if (_cancelled){
+void ShuffleWriter::write(part_type part_id, const std::vector<byte> &bytes) {
+    if (_cancelled) {
         throw std::runtime_error("writers shut down");
     }
-    if (bytes.size() + sizeof(int) > MAX_WORK_BUF){
+    if (bytes.size() + sizeof(int) > MAX_WORK_BUF) {
         std::stringstream err;
-        err<<"message is too big: "<<bytes.size() + sizeof(int)<<" allowed: "<<MAX_WORK_BUF;
+        err << "message is too big: " << bytes.size() + sizeof(int) << " allowed: " << MAX_WORK_BUF;
         throw std::runtime_error(err.str());
     }
 
@@ -58,8 +61,9 @@ void ShuffleWriter::write(part_type part_id, const std::vector<byte>& bytes) {
         _has_data.notify_one();
     }
 }
-std::mutex& ShuffleWriter::get_mutex(int part_id) {
-    if (part_id >= _n_partitions){
+
+std::mutex &ShuffleWriter::get_mutex(int part_id) {
+    if (part_id >= _n_partitions) {
         throw std::runtime_error("partition out of bounds");
     }
     return *_locks[part_id];
@@ -67,8 +71,8 @@ std::mutex& ShuffleWriter::get_mutex(int part_id) {
 
 void ShuffleWriter::launch_tasks(int num_tasks) {
     // num_tasks needs to be proportional (or equal) to the number of cores
-    for(int i =0;i<num_tasks;++i){
-        _workers.emplace_back(std::thread([&](){task_thread(*this);}));
+    for (int i = 0; i < num_tasks; ++i) {
+        _workers.emplace_back(std::thread([&]() { task_thread(*this); }));
     }
 }
 
@@ -79,8 +83,8 @@ void ShuffleWriter::cancel() {
     }
 }
 
-void ShuffleWriter::wait_for_completion(){
-    for(auto &w:_workers){
+void ShuffleWriter::wait_for_completion() {
+    for (auto &w: _workers) {
         w.join();
     }
 }
@@ -88,7 +92,7 @@ void ShuffleWriter::wait_for_completion(){
 // flushes buffer to network
 // requires refactoring since it is mostly code copied from write
 void ShuffleWriter::flush(part_type part_id) {
-    if (_cancelled){
+    if (_cancelled) {
         throw std::runtime_error("writers shut down");
     }
 
@@ -109,8 +113,8 @@ void ShuffleWriter::flush(part_type part_id) {
     _has_data.notify_one();
 }
 
-void ShuffleWriter::task_thread(ShuffleWriter& sw) {
-    while(true) {
+void ShuffleWriter::task_thread(ShuffleWriter &sw) {
+    while (true) {
         int part_id = -1;
         std::unique_lock<std::mutex> lk(sw._mx_ids);
         sw._has_data.wait(lk, [&] { return !sw._ids.empty() || sw._cancelled; });
@@ -129,7 +133,7 @@ void ShuffleWriter::task_thread(ShuffleWriter& sw) {
         }
 
         // process item from queue
-        if (part_id >= sw._n_partitions){
+        if (part_id >= sw._n_partitions) {
             // log error, ignore this part_id
             continue;
         }
@@ -139,7 +143,7 @@ void ShuffleWriter::task_thread(ShuffleWriter& sw) {
         {
             std::lock_guard<std::mutex> lock(mx);
             auto &chunks = sw._qs[part_id];
-            if(chunks.empty()) {
+            if (chunks.empty()) {
                 // must not be empty, put assert here
                 continue;
             }
@@ -148,9 +152,11 @@ void ShuffleWriter::task_thread(ShuffleWriter& sw) {
         }
 
         // lock is released can write data to network
-        for (int i=0;i<chunk.size();++i){
-            sw._os<<chunk[i];
-        }
+//        for (int i=0;i<chunk.size();++i){
+//            sw._os<<chunk[i];
+//        }
+        // count total bytes
+        sw._total_bytes += (int64_t) chunk.size();
     }
 
 }

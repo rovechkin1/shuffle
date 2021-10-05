@@ -4,6 +4,7 @@
 
 #ifndef SHUFFLE_WRITER_H
 #define SHUFFLE_WRITER_H
+
 #include <vector>
 #include <ostream>
 #include <queue>
@@ -14,27 +15,34 @@
 #include <memory>
 #include "common.h"
 
-class ShuffleWriter{
+class ShuffleWriter {
 public:
-    ShuffleWriter(int n_partitions, std::ostream& os);
-    void write(part_type part_id, const std::vector<byte>& bytes);
+    ShuffleWriter(int n_partitions, std::ostream &os);
+
+    void write(part_type part_id, const std::vector<byte> &bytes);
+
     void cancel();
+
     void wait_for_completion();
+
     void flush(part_type part_id);
+
+    int64_t total_bytes() { return _total_bytes; }
+
 private:
     // launches task threads which
     // wait on conditional variable and push data to the network
     // num_tasks needs to be proportional (or equal) to the number of cores
-    void launch_tasks(int num_tasks=4);
+    void launch_tasks(int num_tasks = 4);
 
-    static void task_thread(ShuffleWriter& sw) ;
+    static void task_thread(ShuffleWriter &sw);
 
-    std::mutex& get_mutex(int part_id);
+    std::mutex &get_mutex(int part_id);
 
     int _n_partitions;
 
     // pretend that this is network socket
-    std::ostream& _os;
+    std::ostream &_os;
 
     // array of queues for individual partition buffers
     std::vector<std::queue<std::vector<byte>>> _qs;
@@ -58,6 +66,8 @@ private:
 
     // worker threads;
     std::vector<std::thread> _workers;
+
+    std::atomic<int64_t> _total_bytes;
 
 };
 

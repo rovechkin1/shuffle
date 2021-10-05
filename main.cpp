@@ -10,7 +10,7 @@ int main() {
     for(int i =0;i<num_part;++i){
         workers.emplace_back(std::thread([i,&sw](){
             //std::cout<<"worker: "<<i<<std::endl;
-            for(int j =0;i<100;++j) {
+            for(int j =0;j<100;++j) {
                 std::stringstream ss;
                 ss << "worker: " << i<<" j:"<<j;
                 std::string s = ss.str();

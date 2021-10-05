@@ -3,11 +3,16 @@ Only implements writer part
 
 Writer allows writes to multiple in-memory partitions. Each partition is 
 guarded by individual mutex. Writes are first done in work buffer when buffer reached 8 MB size the data is
-compressed and send over the wire. Each write is an individual record and written to a buffer
-as record := <4-byte len header> | <bytes>. 
+compressed and sent over the wire. Each write is an individual record and written to a buffer
+as 
+```
+record := <4-byte len header> | <bytes>
+```
 
 Similarly when data is compressed, it is written as 
-chunk: = <size> | <compressed bytes>.
+```
+chunk: = <size> | <compressed bytes>
+```
 
 Data is sent over the wire using a set of worker threads. The number of threads
 needs to be proportional to the number of cores for optimal performance.

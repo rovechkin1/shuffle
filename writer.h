@@ -29,18 +29,22 @@ private:
 
     static void task_thread(ShuffleWriter& sw) ;
 
+    std::mutex& get_mutex(int part_id);
+
+    int _n_partitions;
+
     // pretend that this is network socket
     std::ostream& _os;
 
-    // map of queues for individual partition buffers
-    std::unordered_map<part_type,std::queue<std::vector<byte>>> _qs;
+    // array of queues for individual partition buffers
+    std::vector<std::queue<std::vector<byte>>> _qs;
 
-    // synchronization map, each lock per partition queue
-    std::unordered_map<part_type,std::unique_ptr<std::mutex>> _locks;
+    // synchronization array, each lock per partition queue
+    std::vector<std::unique_ptr<std::mutex>> _locks;
 
     // working buffers, one per each partition queue
     // max size MAX_WORK_BUF
-    std::unordered_map<part_type,std::vector<byte>> _wbs;
+    std::vector<std::vector<byte>> _wbs;
 
     // indicates that data is available
     std::condition_variable _has_data;

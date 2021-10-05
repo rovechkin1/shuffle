@@ -3,10 +3,14 @@
 #include "writer.h"
 #include "snappy_mock.h"
 ShuffleWriter::ShuffleWriter(int n_partitions, std::ostream& os):
+    _n_partitions(n_partitions),
     _os(os),
     _cancelled(false){
+    // initialize all arrays
+    _qs = std::vector<std::queue<std::vector<byte>>>(n_partitions);
+    _wbs = std::vector<std::vector<byte>>(n_partitions);
     for(int i=0;i<n_partitions;++i){
-        _locks.emplace(i,std::make_unique<std::mutex>());
+        _locks.emplace_back(std::make_unique<std::mutex>());
     }
 
     launch_tasks();
@@ -22,14 +26,12 @@ void ShuffleWriter::write(part_type part_id, const std::vector<byte>& bytes) {
         throw std::runtime_error(err.str());
     }
 
-    auto mx = _locks.find(part_id);
-    if (mx == _locks.end()){
-        throw std::runtime_error("partition out of bounds");
-    }
+    auto &mx = get_mutex(part_id);
+
     // scoped mutex
     bool if_notify = false;
     {
-        std::lock_guard<std::mutex> lock(*mx->second);
+        std::lock_guard<std::mutex> lock(mx);
         auto &w_buf = _wbs[part_id];
         if (MAX_WORK_BUF - (int) w_buf.size() - MSG_HEADER_LEN < (int) bytes.size()) {
             // compress and push it into the queue
@@ -55,6 +57,12 @@ void ShuffleWriter::write(part_type part_id, const std::vector<byte>& bytes) {
         _ids.push(part_id);
         _has_data.notify_one();
     }
+}
+std::mutex& ShuffleWriter::get_mutex(int part_id) {
+    if (part_id >= _n_partitions){
+        throw std::runtime_error("partition out of bounds");
+    }
+    return *_locks[part_id];
 }
 
 void ShuffleWriter::launch_tasks(int num_tasks) {
@@ -84,13 +92,10 @@ void ShuffleWriter::flush(part_type part_id) {
         throw std::runtime_error("writers shut down");
     }
 
-    auto mx = _locks.find(part_id);
-    if (mx == _locks.end()){
-        throw std::runtime_error("partition out of bounds");
-    }
+    auto &mx = get_mutex(part_id);
     // scoped mutex
     {
-        std::lock_guard<std::mutex> lock(*mx->second);
+        std::lock_guard<std::mutex> lock(mx);
         auto &w_buf = _wbs[part_id];
         // compress and push it into the queue
         auto compressed = SnappyMock::compress(w_buf);
@@ -124,22 +129,22 @@ void ShuffleWriter::task_thread(ShuffleWriter& sw) {
         }
 
         // process item from queue
-        auto mx = sw._locks.find(part_id);
-        if (mx == sw._locks.end()){
+        if (part_id >= sw._n_partitions){
             // log error, ignore this part_id
             continue;
         }
+        auto &mx = sw.get_mutex(part_id);
         // scoped mutex
         std::vector<byte> chunk;
         {
-            std::lock_guard<std::mutex> lock(*mx->second);
-            auto chunks = sw._qs.find(part_id);
-            if(chunks == sw._qs.end() || chunks->second.empty()) {
+            std::lock_guard<std::mutex> lock(mx);
+            auto &chunks = sw._qs[part_id];
+            if(chunks.empty()) {
                 // must not be empty, put assert here
                 continue;
             }
-            chunk = chunks->second.front(); // copy data
-            chunks->second.pop();
+            chunk = chunks.front(); // copy data
+            chunks.pop();
         }
 
         // lock is released can write data to network

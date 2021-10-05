@@ -1,4 +1,5 @@
 #include <thread>
+#include <sstream>
 #include "writer.h"
 #include "snappy_mock.h"
 ShuffleWriter::ShuffleWriter(int n_partitions, std::ostream& os):
@@ -16,7 +17,9 @@ void ShuffleWriter::write(part_type part_id, const std::vector<byte>& bytes) {
         throw std::runtime_error("writers shut down");
     }
     if (bytes.size() + sizeof(int) > MAX_WORK_BUF){
-        throw std::runtime_error("message is too big");
+        std::stringstream err;
+        err<<"message is too big: "<<bytes.size() + sizeof(int)<<" allowed: "<<MAX_WORK_BUF;
+        throw std::runtime_error(err.str());
     }
 
     auto mx = _locks.find(part_id);

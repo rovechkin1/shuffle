@@ -3,17 +3,19 @@
 #include "writer.h"
 
 int main() {
-    int num_part = 10;
+    int num_part = 100;
     ShuffleWriter sw(num_part,std::cout);
 
     std::vector<std::thread> workers;
     for(int i =0;i<num_part;++i){
         workers.emplace_back(std::thread([i,&sw](){
             //std::cout<<"worker: "<<i<<std::endl;
-            std::stringstream ss;
-            ss<<"worker: "<<i;
-            std::string s = ss.str();
-            sw.write(i,std::vector<byte>(s.begin(),s.end()));
+            for(int j =0;i<100;++j) {
+                std::stringstream ss;
+                ss << "worker: " << i<<" j:"<<j;
+                std::string s = ss.str();
+                sw.write(i, std::vector<byte>(s.begin(), s.end()));
+            }
             sw.flush(i);
         }));
     }

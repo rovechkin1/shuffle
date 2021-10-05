@@ -1,5 +1,6 @@
 #include <iostream>
 #include <sstream>
+#include <unistd.h>
 #include "writer.h"
 
 int main() {
@@ -23,6 +24,7 @@ int main() {
     for (auto &w: workers) {
         w.join();
     }
+    sleep(5);
     sw.cancel();
     sw.wait_for_completion();
     std::cout << "done" << std::endl;

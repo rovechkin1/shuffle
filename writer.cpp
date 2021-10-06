@@ -4,8 +4,9 @@
 #include "writer.h"
 #include "mock_snappy.h"
 
-ShuffleWriter::ShuffleWriter(int n_partitions, std::ostream &os) :
+ShuffleWriter::ShuffleWriter(int n_partitions, int num_cores, std::ostream &os) :
         _n_partitions(n_partitions),
+        _num_cores(num_cores),
         _os(os),
         _done(false),
         _total_bytes(0) {
@@ -16,7 +17,7 @@ ShuffleWriter::ShuffleWriter(int n_partitions, std::ostream &os) :
         _locks.emplace_back(std::make_unique<std::mutex>());
     }
 
-    launch_tasks();
+    launch_tasks(_num_cores);
 }
 
 void ShuffleWriter::write(part_type part_id, const std::vector<byte> &bytes) {

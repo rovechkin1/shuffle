@@ -7,10 +7,11 @@
 int main(int argc, char **argv) {
     int num_part = 100;
     int num_iter = 100;
+    int num_cores = 4;
     for (int i = 1; i < argc;) {
         if (std::string(argv[i]) == "--help" ||
             std::string(argv[i]) == "-h") {
-            std::cout << "Usage: shuffle -p <number of partitions|100> -i <number of iterations|100>" << std::endl;
+            std::cout << "Usage: shuffle -p <partitions|100> -i <iterations|100> -c <cores|4>" << std::endl;
             return 0;
         } else if (std::string(argv[i]) == "-p" && i + 1 < argc) {
             std::stringstream ss(argv[i + 1]);
@@ -20,13 +21,17 @@ int main(int argc, char **argv) {
             std::stringstream ss(argv[i + 1]);
             ss >> num_iter;
             i += 2;
+        } else if (std::string(argv[i]) == "-c" && i + 1 < argc) {
+            std::stringstream ss(argv[i + 1]);
+            ss >> num_cores;
+            i += 2;
         } else {
-            std::cout<<"Invalid argument: "<<argv[i]<<std::endl;
+            std::cout << "Invalid argument: " << argv[i] << std::endl;
             return 1;
         }
     }
 
-    ShuffleWriter sw(num_part, std::cout);
+    ShuffleWriter sw(num_part, num_cores,std::cout);
     auto t_start = std::chrono::high_resolution_clock::now();
 
     std::vector<std::thread> workers;

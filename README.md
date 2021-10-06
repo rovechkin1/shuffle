@@ -29,3 +29,19 @@ custom memory-mapped allocator which can be used with std::queue, or custom circ
 mmap directly. Circular FIFO queue would also improve performance without mmap, since
 no allocation/deallocation is required for push/pop.
 
+## Performance data
+```
+$  cmake-build-debug/shuffle -i 50000 -c 8
+done, num_part: 100, num iter: 50000, elapsed time: 4795.75, ms
+total bytes :108389000
+$  cmake-build-debug/shuffle -i 50000 -c 4
+done, num_part: 100, num iter: 50000, elapsed time: 4939, ms
+total bytes :108389000
+$  cmake-build-debug/shuffle -i 50000 -c 2
+done, num_part: 100, num iter: 50000, elapsed time: 5485.01, ms
+total bytes :108389000
+$  cmake-build-debug/shuffle -i 50000 -c 1
+done, num_part: 100, num iter: 50000, elapsed time: 6653.11, ms
+total bytes :108389000
+```
+

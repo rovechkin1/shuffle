@@ -17,7 +17,7 @@
 
 class ShuffleWriter {
 public:
-    ShuffleWriter(int n_partitions, std::ostream &os);
+    ShuffleWriter(int n_partitions, int num_cores, std::ostream &os);
 
     void write(part_type part_id, const std::vector<byte> &bytes);
 
@@ -40,6 +40,7 @@ private:
     std::mutex &get_mutex(int part_id);
 
     int _n_partitions;
+    int _num_cores;
 
     // pretend that this is network socket
     std::ostream &_os;

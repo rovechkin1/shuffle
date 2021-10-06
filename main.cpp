@@ -1,18 +1,39 @@
 #include <iostream>
 #include <sstream>
 #include <unistd.h>
+#include <chrono>
 #include "writer.h"
 
-int main() {
-    // mock reader
+int main(int argc, char **argv) {
     int num_part = 100;
+    int num_iter = 100;
+    for (int i = 1; i < argc;) {
+        if (std::string(argv[i]) == "--help" ||
+            std::string(argv[i]) == "-h") {
+            std::cout << "Usage: shuffle -p <number of partitions|100> -i <number of iterations|100>" << std::endl;
+            return 0;
+        } else if (std::string(argv[i]) == "-p" && i + 1 < argc) {
+            std::stringstream ss(argv[i + 1]);
+            ss >> num_part;
+            i += 2;
+        } else if (std::string(argv[i]) == "-i" && i + 1 < argc) {
+            std::stringstream ss(argv[i + 1]);
+            ss >> num_iter;
+            i += 2;
+        } else {
+            std::cout<<"Invalid argument: "<<argv[i]<<std::endl;
+            return 1;
+        }
+    }
+
     ShuffleWriter sw(num_part, std::cout);
+    auto t_start = std::chrono::high_resolution_clock::now();
 
     std::vector<std::thread> workers;
     for (int i = 0; i < num_part; ++i) {
-        workers.emplace_back(std::thread([i, &sw]() {
+        workers.emplace_back(std::thread([i, &sw, num_iter]() {
             //std::cout<<"worker: "<<i<<std::endl;
-            for (int j = 0; j < 100; ++j) {
+            for (int j = 0; j < num_iter; ++j) {
                 std::stringstream ss;
                 ss << "worker: " << i << " j:" << j;
                 std::string s = ss.str();
@@ -24,10 +45,14 @@ int main() {
     for (auto &w: workers) {
         w.join();
     }
-    sleep(5);
-    sw.cancel();
+    sw.done();
     sw.wait_for_completion();
-    std::cout << "done" << std::endl;
+    auto t_end = std::chrono::high_resolution_clock::now();
+    double elapsed_time_ms = std::chrono::duration<double, std::milli>(t_end - t_start).count();
+
+    std::cout << "done, num_part: " << num_part
+              << ", num iter: " << num_iter << ", elapsed time: "
+              << elapsed_time_ms << ", ms" << std::endl;
     std::cout << "total bytes :" << sw.total_bytes() << std::endl;
     return 0;
 }

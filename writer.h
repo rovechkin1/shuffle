@@ -21,7 +21,7 @@ public:
 
     void write(part_type part_id, const std::vector<byte> &bytes);
 
-    void cancel();
+    void done();
 
     void wait_for_completion();
 
@@ -61,8 +61,9 @@ private:
     // mutex for id queue
     std::mutex _mx_ids;
 
-    // if cancelled
-    std::atomic<bool> _cancelled;
+    // if done, finish writing data to network
+    // then shutdown
+    std::atomic<bool> _done;
 
     // worker threads;
     std::vector<std::thread> _workers;

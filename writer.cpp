@@ -7,7 +7,7 @@
 ShuffleWriter::ShuffleWriter(int n_partitions, std::ostream &os) :
         _n_partitions(n_partitions),
         _os(os),
-        _cancelled(false),
+        _done(false),
         _total_bytes(0) {
     // initialize all arrays
     _qs = std::vector<std::queue<std::vector<byte>>>(n_partitions);
@@ -20,8 +20,8 @@ ShuffleWriter::ShuffleWriter(int n_partitions, std::ostream &os) :
 }
 
 void ShuffleWriter::write(part_type part_id, const std::vector<byte> &bytes) {
-    if (_cancelled) {
-        throw std::runtime_error("writers shut down");
+    if (_done) {
+        throw std::runtime_error("writers are shutting down");
     }
     if (bytes.size() + sizeof(int) > MAX_WORK_BUF) {
         std::stringstream err;
@@ -76,9 +76,9 @@ void ShuffleWriter::launch_tasks(int num_tasks) {
     }
 }
 
-void ShuffleWriter::cancel() {
-    if (!_cancelled) {
-        _cancelled = true;
+void ShuffleWriter::done() {
+    if (!_done) {
+        _done = true;
         _has_data.notify_all();
     }
 }
@@ -92,7 +92,7 @@ void ShuffleWriter::wait_for_completion() {
 // flushes buffer to network
 // requires refactoring since it is mostly code copied from write
 void ShuffleWriter::flush(part_type part_id) {
-    if (_cancelled) {
+    if (_done) {
         throw std::runtime_error("writers shut down");
     }
 
@@ -117,9 +117,10 @@ void ShuffleWriter::task_thread(ShuffleWriter &sw) {
     while (true) {
         int part_id = -1;
         std::unique_lock<std::mutex> lk(sw._mx_ids);
-        sw._has_data.wait(lk, [&] { return !sw._ids.empty() || sw._cancelled; });
+        sw._has_data.wait(lk, [&] { return !sw._ids.empty() || sw._done; });
 
-        if (sw._cancelled) {
+        // if done is signalled and no more data, return
+        if (sw._done && sw._ids.empty()) {
             lk.unlock();
             return;
         }
